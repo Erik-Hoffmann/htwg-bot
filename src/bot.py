@@ -22,6 +22,24 @@ MENSA_HTWG = 'https://seezeit.com/essen/speiseplaene/mensa-htwg/'
 def validateIngr(sup):
     return bool(re.match("\((\d\w?,?)+\)", sup))
 
+def attr_lookup(attribute):
+    lookup = {
+            "Veg": "Vegetarisch",
+            "Vegan": "Vegan",
+            "Sch": "Schwein",
+            "R": "Rind/Kalb",
+            "G": "Geflügel",
+            "L": "Lamm",
+            "W": "Wild",
+            "F": "Fisch/Meeresfrüchte"
+            }
+    result = []
+    if attribute:
+        for attr in attribute:
+            if attr in lookup:
+                result.append(lookup[attr])
+    return ", ".join(result) if result else ""
+
 # Commands
 @bot.event
 async def on_ready():
@@ -30,16 +48,26 @@ async def on_ready():
 @bot.command(name='99', help='Responds with a random quote from Brooklyn 99')
 async def nine_nine(ctx):
     brooklyn_99_quotes = [
-        'I\'m the human form of the 💯 emoji.',
         'Bingpot!',
         (
             'Cool. Cool cool cool cool cool cool cool, '
             'no doubt no doubt no doubt no doubt.'
         ),
+        'I\'m the human form of the 💯 emoji.',
+        'Love, it sustains you. It’s like oatmeal.',
+        'You’re under arrest for ruining something perfect!',
+        'Every time you talk, I hear that sound that plays when Pac-Man dies.',
+        'I asked them if they wanted to embarrass you, and they instantly said yes.',
+        'Fine, but in protest, I’m walking over there extremely slowly!',
+        'Why don’t you just do the right thing and jump out of a window?'
     ]
 
     response = random.choice(brooklyn_99_quotes)
     await ctx.send(response)
+
+@bot.command(name='bug', help='Found a bug? Report it!')
+async def bug(ctx): 
+    await ctx.send(f"Nobody is perfect! Report bugs here: https://github.com/Erik-Hoffmann/htwg-bot/issues")
 
 @bot.command(name='mensa', help='Responds with the current menu')
 async def menu(ctx):
@@ -49,6 +77,7 @@ async def menu(ctx):
     date_tabs = contents.find_all('a', class_='tab')
     current_tab = None
     current_tab_class = None
+    attr_class='speiseplanTagKatIcon'
     for tab in date_tabs:
         current_tab = tab.text
         if date.today().strftime("%d.%m.") in current_tab:
@@ -73,9 +102,10 @@ async def menu(ctx):
             for sup in food.select('sup'):
                 if not validateIngr(sup.text): sup.unwrap()
                 else : sup.decompose()
-            response.add_field(name=category.text, value=f"{food.text}", inline=True)
+            attribute=menu.find('div', class_='title_preise_2').find('div', class_=attr_class)['class']
+            response.add_field(name=f"{category.text} : {attr_lookup(attribute)}", value=f"{food.text}", inline=True)
     else:
-        response.add_field(name="Heute wohl nix", value="Zu oder so :(")
+        response.add_field(name="Heute wohl nix", value="Zu oder so :(\nVielleicht heitert dich ein Quiz auf?\nhttps://www.mensa.de/about/membership/online-iq-test/")
 
     await ctx.send(embed=response)
 
