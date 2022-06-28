@@ -65,6 +65,10 @@ async def nine_nine(ctx):
     response = random.choice(brooklyn_99_quotes)
     await ctx.send(response)
 
+@bot.command(name='bug', help='Found a bug? Report it!')
+async def bug(ctx): 
+    await ctx.send(f"Nobody is perfect! Report bugs here: https://github.com/Erik-Hoffmann/htwg-bot/issues")
+
 @bot.command(name='mensa', help='Responds with the current menu')
 async def menu(ctx):
     page_response = requests.get(MENSA_HTWG)
@@ -101,7 +105,7 @@ async def menu(ctx):
             attribute=menu.find('div', class_='title_preise_2').find('div', class_=attr_class)['class']
             response.add_field(name=f"{category.text} : {attr_lookup(attribute)}", value=f"{food.text}", inline=True)
     else:
-        response.add_field(name="Heute wohl nix", value="Zu oder so :(")
+        response.add_field(name="Heute wohl nix", value="Zu oder so :(\nVielleicht heitert dich ein Quiz auf?\nhttps://www.mensa.de/about/membership/online-iq-test/")
 
     await ctx.send(embed=response)
 
