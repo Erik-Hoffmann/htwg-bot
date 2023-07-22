@@ -5,11 +5,10 @@ import random
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
-from datetime import date
 
-from bs4 import BeautifulSoup
 import requests
-import re
+
+from speiseplan import Speiseplan_extractor
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -17,28 +16,6 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 bot = commands.Bot(command_prefix='!')
 
 MENSA_HTWG = 'https://seezeit.com/essen/speiseplaene/mensa-htwg/'
-
-# Utility
-def validateIngr(sup):
-    return bool(re.match("\((\d\w?,?)+\)", sup))
-
-def attr_lookup(attribute):
-    lookup = {
-            "Veg": "Vegetarisch",
-            "Vegan": "Vegan",
-            "Sch": "Schwein",
-            "R": "Rind/Kalb",
-            "G": "Geflügel",
-            "L": "Lamm",
-            "W": "Wild",
-            "F": "Fisch/Meeresfrüchte"
-            }
-    result = []
-    if attribute:
-        for attr in attribute:
-            if attr in lookup:
-                result.append(lookup[attr])
-    return ", ".join(result) if result else ""
 
 # Commands
 @bot.event
@@ -71,41 +48,27 @@ async def bug(ctx):
 
 @bot.command(name='mensa', help='Responds with the current menu')
 async def menu(ctx):
-    page_response = requests.get(MENSA_HTWG)
-    soup = BeautifulSoup(page_response.content, 'html.parser')
-    contents = soup.find('div', class_='tx-speiseplan')
-    date_tabs = contents.find_all('a', class_='tab')
-    current_tab = None
-    current_tab_class = None
-    attr_class='speiseplanTagKatIcon'
-    for tab in date_tabs:
-        current_tab = tab.text
-        if date.today().strftime("%d.%m.") in current_tab:
-        # if "16.05." in current_tab:
-            current_tab_class = tab.get('class')[1]
-            break
-    
-            
     response = discord.Embed(
-                title="In der Mensa gibt es:",
-                url=MENSA_HTWG
-            )
-    if not current_tab_class is None:
+            title="In der Mensa gibt es:",
+            url=Speiseplan_extractor.address
+        )
+    try:
+        extractor = Speiseplan_extractor()
+        data = extractor.get_tab_json()
+        if not data:
+            response.add_field(name="Heute wohl nix", value="Zu oder so :(\nVielleicht heitert dich ein Quiz auf?\nhttps://www.mensa.de/about/membership/online-iq-test/")
+        else:
+            for menu in data:
+                response.add_field(name=f"{menu.get('category')} {': ' + str(menu.get('tags')) if menu.get('tags') else ''}", value=menu.get('food'), inline=True)
 
-        day = contents.find('div', {"id":current_tab_class})
-        menus = day.find_all('div', class_='speiseplanTagKat')
-
-
-        for menu in menus:
-            category=menu.find('div', class_='category')
-            food=menu.find('div', class_='title_preise_1').find('div', class_='title')
-            for sup in food.select('sup'):
-                if not validateIngr(sup.text): sup.unwrap()
-                else : sup.decompose()
-            attribute=menu.find('div', class_='title_preise_2').find('div', class_=attr_class)['class']
-            response.add_field(name=f"{category.text} : {attr_lookup(attribute)}", value=f"{food.text}", inline=True)
-    else:
-        response.add_field(name="Heute wohl nix", value="Zu oder so :(\nVielleicht heitert dich ein Quiz auf?\nhttps://www.mensa.de/about/membership/online-iq-test/")
+    except requests.ConnectionError as e:
+        response.add_field(name="Fehler!", value=f"Seite nicht erreichbar!\n{e}")
+    except IndexError as e:
+        response.add_field(name="Fehler!", value=f"Tab ID nicht gefunden!\n{e}")
+    except ValueError as e:
+        response.add_field(name="Fehler!", value=e)
+    except Exception as e:
+        response.add_field(name="Fehler", value=f"Unhandled Exception:\n```{e}```")
 
     await ctx.send(embed=response)
 
