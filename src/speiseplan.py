@@ -36,7 +36,10 @@ class Speiseplan_extractor:
             idx = self.eval_index(today_id, tab_idx)
             if not menu(f"#tab{idx}"):
                 raise IndexError("non existant tab id")
-        return self.extract_categories(self.get_tab_content(idx))
+        return self.filter_empty_tabs(self.extract_categories(self.get_tab_content(idx)))
+    
+    def filter_empty_tabs(self, tabs):
+        return list(filter(lambda tab : tab.get('category') and tab.get('food'), tabs))
 
     def eval_index(self, base_id: int, shift_id: str):
         if re.match(r"^[+-]?\d$", shift_id):
